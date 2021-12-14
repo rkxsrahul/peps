@@ -1,0 +1,924 @@
+
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PEP 677 – Callable Type Syntax | peps.python.org</title>
+    <link rel="shortcut icon" href="../_static/py.png"/>
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/mq.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <meta name="description" content="Python Enhancement Proposals (PEPs)"/>
+</head>
+<body>
+    <section id="pep-page-section">
+        <header>
+            <h1>Python Enhancement Proposals</h1>
+            <ul class="breadcrumbs">
+                <li><a href="https://www.python.org/" title="The Python Programming Language">Python</a> &raquo; </li>
+                <li><a href="../pep-0000/">PEP Index</a> &raquo; </li>
+                <li>PEP 677 – Callable Type Syntax</li>
+            </ul>
+        </header>
+        <article>
+            <section id="pep-content">
+<h1 class="page-title">PEP 677 – Callable Type Syntax</h1>
+<dl class="rfc2822 field-list simple">
+<dt class="field-odd">PEP</dt>
+<dd class="field-odd">677</dd>
+<dt class="field-even">Title</dt>
+<dd class="field-even">Callable Type Syntax</dd>
+<dt class="field-odd">Author</dt>
+<dd class="field-odd">Steven Troxler &lt;steven.troxler&#32;&#97;t&#32;gmail.com&gt;,
+Pradeep Kumar Srinivasan &lt;gohanpra&#32;&#97;t&#32;gmail.com&gt;</dd>
+<dt class="field-even">Sponsor</dt>
+<dd class="field-even">Guido van Rossum &lt;guido at python.org&gt;</dd>
+<dt class="field-odd">Status</dt>
+<dd class="field-odd">Draft</dd>
+<dt class="field-even">Type</dt>
+<dd class="field-even">Standards Track</dd>
+<dt class="field-odd">Created</dt>
+<dd class="field-odd">13-Dec-2021</dd>
+<dt class="field-even">Python-Version</dt>
+<dd class="field-even">3.11</dd>
+<dt class="field-odd">Post-History</dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<hr class="docutils" />
+<section id="contents">
+<h2>Contents</h2>
+<ul class="simple">
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#motivation">Motivation</a><ul>
+<li><a class="reference internal" href="#describing-callable-signatures-with-typing-callable">Describing Callable Signatures with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></li>
+<li><a class="reference internal" href="#problems-with-typing-callable">Problems with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></li>
+<li><a class="reference internal" href="#an-arrow-syntax-for-callable-types">An Arrow Syntax for Callable Types</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rationale">Rationale</a></li>
+<li><a class="reference internal" href="#specification">Specification</a><ul>
+<li><a class="reference internal" href="#typing-behavior">Typing Behavior</a></li>
+<li><a class="reference internal" href="#grammar-and-ast">Grammar and AST</a></li>
+<li><a class="reference internal" href="#implications-of-the-grammar">Implications of the Grammar</a><ul>
+<li><a class="reference internal" href="#precedence-of">Precedence of -&gt;</a></li>
+<li><a class="reference internal" href="#async-keyword"><code class="docutils literal notranslate"><span class="pre">async</span></code> Keyword</a></li>
+<li><a class="reference internal" href="#trailing-commas">Trailing Commas</a></li>
+<li><a class="reference internal" href="#disallowing-as-an-argument-type">Disallowing <code class="docutils literal notranslate"><span class="pre">...</span></code> as an Argument Type</a></li>
+<li><a class="reference internal" href="#incompatibility-with-other-possible-uses-of-and">Incompatibility with other possible uses of <code class="docutils literal notranslate"><span class="pre">*</span></code> and <code class="docutils literal notranslate"><span class="pre">**</span></code></a></li>
+<li><a class="reference internal" href="#compatibility-with-arrow-based-lambda-syntax">Compatibility with Arrow-Based Lambda Syntax</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#runtime-behavior">Runtime Behavior</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rejected-alternatives">Rejected Alternatives</a><ul>
+<li><a class="reference internal" href="#extended-syntax-supporting-named-and-optional-arguments">Extended Syntax Supporting Named and Optional Arguments</a></li>
+<li><a class="reference internal" href="#syntax-closer-to-function-signatures">Syntax Closer to Function Signatures</a></li>
+<li><a class="reference internal" href="#other-proposals-considered">Other Proposals Considered</a><ul>
+<li><a class="reference internal" href="#functions-as-types">Functions-as-Types</a></li>
+<li><a class="reference internal" href="#parenthesis-free-syntax">Parenthesis-Free Syntax</a></li>
+<li><a class="reference internal" href="#introducing-type-strings">Introducing type-strings</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
+<li><a class="reference internal" href="#reference-implementation">Reference Implementation</a></li>
+<li><a class="reference internal" href="#open-issues">Open Issues</a><ul>
+<li><a class="reference internal" href="#details-of-the-runtime-api">Details of the Runtime API</a></li>
+<li><a class="reference internal" href="#optimizing-syntaxerror-messages">Optimizing <code class="docutils literal notranslate"><span class="pre">SyntaxError</span></code> messages</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#resources">Resources</a><ul>
+<li><a class="reference internal" href="#background-and-history">Background and History</a></li>
+<li><a class="reference internal" href="#other-languages">Other Languages</a><ul>
+<li><a class="reference internal" href="#id2">TypeScript</a></li>
+<li><a class="reference internal" href="#id4">Kotlin</a></li>
+<li><a class="reference internal" href="#id6">Scala</a></li>
+<li><a class="reference internal" href="#the-ml-language-family">The ML Language Family</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#copyright">Copyright</a></li>
+</ul>
+</section>
+<section id="abstract">
+<h2><a class="toc-backref" href="#abstract">Abstract</a></h2>
+<p>This PEP introduces a concise and friendly syntax for callable types,
+supporting the same functionality as <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> but with an
+arrow syntax inspired by the syntax for typed function
+signatures. This allows types like <code class="docutils literal notranslate"><span class="pre">Callable[[int,</span> <span class="pre">str],</span> <span class="pre">bool]</span></code> to
+be written <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code>.</p>
+<p>The proposed syntax supports all the functionality provided by
+<code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> and <code class="docutils literal notranslate"><span class="pre">typing.Concatenate</span></code>, and is intended to
+work as a drop-in replacement.</p>
+</section>
+<section id="motivation">
+<h2><a class="toc-backref" href="#motivation">Motivation</a></h2>
+<section id="describing-callable-signatures-with-typing-callable">
+<h3><a class="toc-backref" href="#describing-callable-signatures-with-typing-callable">Describing Callable Signatures with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></h3>
+<p>One way to make code safer and easier to analyze is by making sure
+that functions and classes are well-typed. In Python we have type
+annotations defined by <a class="reference external" href="../pep-0484">PEP 484</a> to provide type hints that can find
+bugs as well as helping with editor tooling like tab completion,
+static analysis tooling, and code review.</p>
+<p>One of the types <a class="reference external" href="https://www.python.org/dev/peps/pep-0484/#callable">defined by PEP 484</a> is
+<code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>, which describes a callable value such as a
+function or a method. It takes two parameters as inputs but with the
+first parameter being either a placeholder like <code class="docutils literal notranslate"><span class="pre">...</span></code> or a list of
+types. For example:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">Callable[...,</span> <span class="pre">int]</span></code> indicates a function with arbitrary
+parameters returning an integer.</li>
+<li><code class="docutils literal notranslate"><span class="pre">Callable[[str,</span> <span class="pre">int],</span> <span class="pre">bool]</span></code> indicates a function taking two
+positional parameters of types <code class="docutils literal notranslate"><span class="pre">str</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code> and returning a
+<code class="docutils literal notranslate"><span class="pre">bool</span></code>.</li>
+</ul>
+<p>Of the types defined by <a class="reference external" href="../pep-0484">PEP 484</a>, <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> is the most
+complex because it is the only one that requires two levels of
+brackets in the same type. <a class="reference external" href="../pep-0612">PEP 612</a> added <code class="docutils literal notranslate"><span class="pre">typing.ParamSpec</span></code> and
+<code class="docutils literal notranslate"><span class="pre">typing.Concatenate</span></code> to help describe functions that pass <code class="docutils literal notranslate"><span class="pre">*args</span></code>
+and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> to callbacks, which is very common with
+decorators. This made <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> more powerful but also more
+complicated.</p>
+</section>
+<section id="problems-with-typing-callable">
+<h3><a class="toc-backref" href="#problems-with-typing-callable">Problems with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></h3>
+<p>Empirically <a class="reference external" href="https://github.com/pradeep90/annotation_collector#typed-projects---callable-type">we have found</a>
+that it is common for library authors to make use of untyped or
+partially-typed callables (e.g. <code class="docutils literal notranslate"><span class="pre">Callable[...,</span> <span class="pre">Any]</span></code> or a bare
+<code class="docutils literal notranslate"><span class="pre">Callable</span></code>) which we believe is partially a result of the existing
+types being hard to use. But using this kind of partially-typed
+callable can negate the benefits of static typing. For example,
+consider the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+
+<span class="k">def</span> <span class="nf">with_retries</span><span class="p">(</span>
+    <span class="n">f</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">retry_once</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">retry_once</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span> <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span> <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+<span class="nd">@with_retries</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">x</span>
+
+
+<span class="n">f</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The decorator above is clearly not intended to modify the type of the
+function it wraps, but because it uses <code class="docutils literal notranslate"><span class="pre">Callable[...,</span> <span class="pre">Any]</span></code> it
+accidentally eliminates the annotations on <code class="docutils literal notranslate"><span class="pre">f</span></code>, and type checkers
+will accept the code above even though it is sure to crash at
+runtime. A correct version of this code would look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Concatenate</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;R&quot;</span><span class="p">)</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="s2">&quot;P&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">with_retries</span><span class="p">(</span>
+    <span class="n">f</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">Concatenate</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">P</span><span class="p">]</span> <span class="n">R</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">retry_once</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="o">...</span>
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>With these changes, the incorrect attempt to pass <code class="docutils literal notranslate"><span class="pre">z</span></code> to <code class="docutils literal notranslate"><span class="pre">f</span></code>
+produces a typecheck error as we would like.</p>
+<p>Four usability problems with the way <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> is
+represented may explain why library authors often do not use its full
+power:</p>
+<ul class="simple">
+<li>It is verbose, particularly for more complex function signatures.</li>
+<li>It does not visually represent the way function headers are written,
+which can make it harder to learn and use.</li>
+<li>It requires an explicit import, something we no longer require for
+most of the other very common types after <a class="reference external" href="../pep-0604">PEP 604</a> (<code class="docutils literal notranslate"><span class="pre">|</span></code> for
+<code class="docutils literal notranslate"><span class="pre">Union</span></code> types) and <a class="reference external" href="../pep-0585">PEP 585</a> (generic collections)</li>
+<li>It relies on two levels of nested square brackets. This can be quite
+hard to read, especially when the function arguments themselves have
+square brackets.</li>
+</ul>
+<p>With our proposed syntax, the properly-typed decorator example becomes
+concise and the type representations are visually descriptive:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;R&quot;</span><span class="p">)</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="s2">&quot;P&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">with_retries</span><span class="p">(</span>
+    <span class="n">f</span><span class="p">:</span> <span class="p">(</span><span class="o">**</span><span class="n">P</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="an-arrow-syntax-for-callable-types">
+<h3><a class="toc-backref" href="#an-arrow-syntax-for-callable-types">An Arrow Syntax for Callable Types</a></h3>
+<p>We are proposing a succinct, easy-to-use syntax for
+<code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> that looks similar to function headers in Python.
+Our proposal closely follows syntax used by several popular languages
+such as <a class="reference external" href="https://basarat.gitbook.io/typescript/type-system/callable#arrow-syntax">Typescript</a>,
+<a class="reference external" href="https://kotlinlang.org/docs/lambdas.html">Kotlin</a>, and <a class="reference external" href="https://docs.scala-lang.org/tour/higher-order-functions.html">Scala</a>.</p>
+<p>Our goals are that:</p>
+<ul class="simple">
+<li>Callable types using this syntax will be easier to learn and use,
+particularly for developers with experience in other languages.</li>
+<li>Library authors will be more likely to use expressive types for
+callables that enable type checkers to better understand code and
+find bugs, as in the <code class="docutils literal notranslate"><span class="pre">decorator</span></code> example above.</li>
+</ul>
+<p>Consider this simplified real-world example from a web server, written
+using the existing <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Awaitable</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">app_logic</span> <span class="kn">import</span> <span class="n">Response</span><span class="p">,</span> <span class="n">UserSetting</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">customize_response_for_settings</span><span class="p">(</span>
+    <span class="n">response</span><span class="p">:</span> <span class="n">Response</span><span class="p">,</span>
+    <span class="n">customizer</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Response</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">UserSetting</span><span class="p">]],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Response</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+   <span class="o">...</span>
+</pre></div>
+</div>
+<p>With our proposal, this code can be abbreviated to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">app_logic</span> <span class="kn">import</span> <span class="n">Response</span><span class="p">,</span> <span class="n">UserSetting</span>
+
+<span class="k">def</span> <span class="nf">make_endpoint</span><span class="p">(</span>
+    <span class="n">response</span><span class="p">:</span> <span class="n">Response</span><span class="p">,</span>
+    <span class="n">customizer</span><span class="p">:</span> <span class="k">async</span> <span class="p">(</span><span class="n">Response</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">UserSetting</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>This is shorter and requires fewer imports. It also has far less
+nesting of square brackets - only one level, as opposed to three in
+the original code.</p>
+</section>
+</section>
+<section id="rationale">
+<h2><a class="toc-backref" href="#rationale">Rationale</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">Callable</span></code> type is widely used. For example, <a class="reference external" href="https://github.com/pradeep90/annotation_collector#overall-stats-in-typeshed">as of October 2021
+it was</a>
+the fifth most common complex type in typeshed, after <code class="docutils literal notranslate"><span class="pre">Optional</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">Union</span></code>, and <code class="docutils literal notranslate"><span class="pre">List</span></code>.</p>
+<p>Most of the other commonly used types have had their syntax improved
+via either <a class="reference external" href="../pep-0604">PEP 604</a> or <a class="reference external" href="../pep-0585">PEP 585</a>. <code class="docutils literal notranslate"><span class="pre">Callable</span></code> is used heavily enough to
+similarly justify a more usable syntax.</p>
+<p>In this proposal, we chose to support all the existing semantics of
+<code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>, without adding support for new features. We took
+this decision after examining how frequently each feature might be
+used in existing typed and untyped open-source code. We determined
+that the vast majority of use cases are covered.</p>
+<p>We considered adding support for named, optional, and variadic
+arguments. However, we decided against including these features, as
+our analysis showed they are infrequently used. When they are really
+needed, it is possible to type these using <a class="reference external" href="https://mypy.readthedocs.io/en/stable/protocols.html#callback-protocols">Callback Protocols</a>.</p>
+<p>See the Rejected Alternatives section for more detailed discussion
+about omitted features.</p>
+</section>
+<section id="specification">
+<h2><a class="toc-backref" href="#specification">Specification</a></h2>
+<section id="typing-behavior">
+<h3><a class="toc-backref" href="#typing-behavior">Typing Behavior</a></h3>
+<p>Type checkers should treat the new syntax with exactly the same
+semantics as <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>.</p>
+<p>As such, a type checker should treat the following pairs exactly the
+same:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Awaitable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Concatenate</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">TypeVarTuple</span>
+
+<span class="n">P</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="s2">&quot;P&quot;</span><span class="p">)</span>
+<span class="n">Ts</span> <span class="o">=</span> <span class="n">TypeVarTuple</span><span class="p">(</span><span class="s1">&#39;Ts&#39;</span><span class="p">)</span>
+
+<span class="n">f0</span><span class="p">:</span> <span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f0</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f1</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f1</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f2</span><span class="p">:</span> <span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f2</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f3</span><span class="p">:</span> <span class="k">async</span> <span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+<span class="n">f3</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+
+<span class="n">f4</span><span class="p">:</span> <span class="p">(</span><span class="o">**</span><span class="n">P</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f4</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f5</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f5</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">Concatenate</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">P</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f6</span><span class="p">:</span> <span class="p">(</span><span class="o">*</span><span class="n">Ts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f6</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="o">*</span><span class="n">Ts</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span>
+
+<span class="n">f7</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">Ts</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="n">f7</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">Ts</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="grammar-and-ast">
+<h3><a class="toc-backref" href="#grammar-and-ast">Grammar and AST</a></h3>
+<p>The proposed new syntax can be described by these AST changes</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">expr</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">prexisting_expr_kinds</span><span class="o">&gt;</span>
+     <span class="o">|</span> <span class="n">AsyncCallableType</span><span class="p">(</span><span class="n">callable_type_arguments</span> <span class="n">args</span><span class="p">,</span> <span class="n">expr</span> <span class="n">returns</span><span class="p">)</span>
+     <span class="o">|</span> <span class="n">CallableType</span><span class="p">(</span><span class="n">callable_type_arguments</span> <span class="n">args</span><span class="p">,</span> <span class="n">expr</span> <span class="n">returns</span><span class="p">)</span>
+
+<span class="n">callable_type_arguments</span> <span class="o">=</span> <span class="n">AnyArguments</span>
+                        <span class="o">|</span> <span class="n">ArgumentsList</span><span class="p">(</span><span class="n">expr</span><span class="o">*</span> <span class="n">posonlyargs</span><span class="p">)</span>
+                        <span class="o">|</span> <span class="n">Concatenation</span><span class="p">(</span><span class="n">expr</span><span class="o">*</span> <span class="n">posonlyargs</span><span class="p">,</span> <span class="n">expr</span> <span class="n">param_spec</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here are our proposed changes to the <cite>Python Grammar
+&lt;https://docs.python.org/3/reference/grammar.htm&gt;</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>expression:
+    | disjunction disjunction &#39;else&#39; expression
+    | callable_type_expression
+    | disjunction
+    | lambdef
+
+callable_type_expression:
+    | callable_type_arguments &#39;-&gt;&#39; expression
+    | ASYNC callable_type_arguments &#39;-&gt;&#39; expression
+
+callable_type_arguments:
+    | &#39;(&#39; &#39;...&#39; [&#39;,&#39;] &#39;)&#39;
+    | &#39;(&#39; callable_type_positional_argument*  &#39;)&#39;
+    | &#39;(&#39; callable_type_positional_argument* callable_type_param_spec &#39;)&#39;
+
+callable_type_positional_argument:
+    | !&#39;...&#39; expression &#39;,&#39;
+    | !&#39;...&#39; expression &amp;&#39;)&#39;
+
+callable_type_param_spec:
+    | &#39;**&#39; expression &#39;,&#39;
+    | &#39;**&#39; expression &amp;&#39;)&#39;
+</pre></div>
+</div>
+<p>If <a class="reference external" href="../pep-0646">PEP 646</a> is accepted, we intend to include support for unpacked
+types by modifying the grammar for
+<code class="docutils literal notranslate"><span class="pre">callable_type_positional_argument</span></code> as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">callable_type_positional_argument</span><span class="p">:</span>
+    <span class="o">|</span> <span class="n">expression</span> <span class="s1">&#39;,&#39;</span>
+    <span class="o">|</span> <span class="n">expression</span> <span class="o">&amp;</span><span class="s1">&#39;)&#39;</span>
+    <span class="o">|</span> <span class="s1">&#39;*&#39;</span> <span class="n">expression</span> <span class="s1">&#39;,&#39;</span>
+    <span class="o">|</span> <span class="s1">&#39;*&#39;</span> <span class="n">expression</span> <span class="o">&amp;</span><span class="s1">&#39;)&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="implications-of-the-grammar">
+<h3><a class="toc-backref" href="#implications-of-the-grammar">Implications of the Grammar</a></h3>
+<section id="precedence-of">
+<h4><a class="toc-backref" href="#precedence-of">Precedence of -&gt;</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> binds less tightly than other operators, both inside types and
+in function signatures, so the following two callable types are
+equivalent:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">bool</span>
+<span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> associates to the right, both inside types and in function
+signatures. So the following pairs are equivalent:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">((</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="k">pass</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">((</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="k">pass</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">((</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">((</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)):</span> <span class="k">pass</span>
+</pre></div>
+</div>
+<p>Because operators bind more tightly than <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code>, parentheses are
+required whenever an arrow type is intended to be inside an argument
+to an operator like <code class="docutils literal notranslate"><span class="pre">|</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">|</span> <span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>    <span class="c1"># syntax error!</span>
+<span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">|</span> <span class="p">(()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)</span>  <span class="c1"># okay</span>
+</pre></div>
+</div>
+<p>We discussed each of these behaviors and believe they are desirable:</p>
+<ul class="simple">
+<li>Union types (represented by <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">|</span> <span class="pre">B</span></code> according to <a class="reference external" href="../pep-0604">PEP 604</a>) are
+valid in function signature returns, so we need to allow operators
+in the return position for consistency.</li>
+<li>Given that operators bind more tightly than <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> it is correct
+that a type like <code class="docutils literal notranslate"><span class="pre">`bool</span> <span class="pre">|</span> <span class="pre">()</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> must be a syntax error. We
+should be sure the error message is clear because this may be a
+common mistake.</li>
+<li>Associating <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> to the right, rather than requiring explicit
+parentheses, is consistent with other languages like TypeScript and
+respects the principle that valid expressions should normally be
+substitutable when possible.</li>
+</ul>
+</section>
+<section id="async-keyword">
+<h4><a class="toc-backref" href="#async-keyword"><code class="docutils literal notranslate"><span class="pre">async</span></code> Keyword</a></h4>
+<p>All of the binding rules still work for async callable types:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">bool</span>
+<span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="k">async</span> <span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="k">pass</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="k">async</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="k">pass</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="k">async</span> <span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="k">async</span> <span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)):</span> <span class="k">pass</span>
+</pre></div>
+</div>
+</section>
+<section id="trailing-commas">
+<h4><a class="toc-backref" href="#trailing-commas">Trailing Commas</a></h4>
+<ul>
+<li>Following the precedent of function signatures, putting a comma in
+an empty arguments list is illegal, <code class="docutils literal notranslate"><span class="pre">(,)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> is a syntax
+error.</li>
+<li>Again following precedent, trailing commas are otherwise always
+permitted:<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">((</span><span class="nb">int</span><span class="p">,)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">==</span> <span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="p">((</span><span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">,)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">==</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<span class="p">((</span><span class="o">...</span><span class="p">,)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">==</span> <span class="p">((</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Allowing trailing commas also gives autoformatters more flexibility
+when splitting callable types across lines, which is always legal
+following standard python whitespace rules.</p>
+</section>
+<section id="disallowing-as-an-argument-type">
+<h4><a class="toc-backref" href="#disallowing-as-an-argument-type">Disallowing <code class="docutils literal notranslate"><span class="pre">...</span></code> as an Argument Type</a></h4>
+<p>Under normal circumstances, any valid expression is permitted where we
+want a type annotation and <code class="docutils literal notranslate"><span class="pre">...</span></code> is a valid expression. This is
+never semantically valid and all type checkers would reject it, but
+the grammar would allow it if we did not explicitly prevent this.</p>
+<p>We decided that there were compelling reasons to prevent it: - The
+semantics of <code class="docutils literal notranslate"><span class="pre">(...)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> are different from <code class="docutils literal notranslate"><span class="pre">(T)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> for
+any valid type T: <code class="docutils literal notranslate"><span class="pre">(...)</span></code> is a special form indicating
+<code class="docutils literal notranslate"><span class="pre">AnyArguments</span></code> whereas <code class="docutils literal notranslate"><span class="pre">T</span></code> is a type parameter in the arguments
+list.  - <code class="docutils literal notranslate"><span class="pre">...</span></code> is used as a placeholder default value to indicate an
+optional argument in stubs and Callback Protocols. Allowing it in the
+position of a type could easily lead to confusion and possibly bugs
+due to typos.</p>
+<p>Since <code class="docutils literal notranslate"><span class="pre">...</span></code> is meaningless as a type and there are usability
+concerns, our grammar rules it out and the following is a syntax
+error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+</section>
+<section id="incompatibility-with-other-possible-uses-of-and">
+<h4><a class="toc-backref" href="#incompatibility-with-other-possible-uses-of-and">Incompatibility with other possible uses of <code class="docutils literal notranslate"><span class="pre">*</span></code> and <code class="docutils literal notranslate"><span class="pre">**</span></code></a></h4>
+<p>The use of <code class="docutils literal notranslate"><span class="pre">**P</span></code> for supporting <a class="reference external" href="../pep-0612">PEP 612</a> <code class="docutils literal notranslate"><span class="pre">ParamSpec</span></code> rules out any
+future proposal using a bare <code class="docutils literal notranslate"><span class="pre">**&lt;some_type&gt;</span></code> to type
+<code class="docutils literal notranslate"><span class="pre">kwargs</span></code>. This seems acceptable because:</p>
+<ul class="simple">
+<li>If we ever do want such a syntax, it would be clearer to require an
+argument name anyway. This would also make the type look more
+similar to a function signature. In other words, if we ever support
+typing <code class="docutils literal notranslate"><span class="pre">kwargs</span></code> in callable types, we would prefer <code class="docutils literal notranslate"><span class="pre">(int,</span>
+<span class="pre">**kwargs:</span> <span class="pre">str)</span></code> rather than <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">**str)</span></code>.</li>
+<li><a class="reference external" href="../pep-0646">PEP 646</a> unpacking syntax would rule out using <code class="docutils literal notranslate"><span class="pre">*&lt;some_type&gt;</span></code> for
+<code class="docutils literal notranslate"><span class="pre">args</span></code>. The <code class="docutils literal notranslate"><span class="pre">kwargs</span></code> case is similar enough that this rules out
+a bare <code class="docutils literal notranslate"><span class="pre">**&lt;some_type&gt;</span></code> anyway.</li>
+</ul>
+</section>
+<section id="compatibility-with-arrow-based-lambda-syntax">
+<h4><a class="toc-backref" href="#compatibility-with-arrow-based-lambda-syntax">Compatibility with Arrow-Based Lambda Syntax</a></h4>
+<p>To the best of our knowledge there is no active discussion of
+arrow-style lambda syntax that we are aware of, but it is nonetheless
+worth considering what possibilities would be ruled out by adopting
+this proposal.</p>
+<p>It would be incompatible with this proposal to adopt the same a
+parenthesized <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code>-based arrow syntax for lambdas, e.g.  <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y)</span> <span class="pre">-&gt;</span>
+<span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code> for <code class="docutils literal notranslate"><span class="pre">lambda</span> <span class="pre">x,</span> <span class="pre">y:</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code>.</p>
+<p>Our view is that if we want arrow syntax for lambdas in the future, it
+would be a better choice to use <code class="docutils literal notranslate"><span class="pre">=&gt;</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y)</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code>.
+Many languages use the same arrow token for both lambdas and callable
+types, but Python is unique in that types are expressions and have to
+evaluate to runtime values. Our view is that this merits using
+separate tokens, and given the existing use of <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> for return types
+in function signatures it would be more coherent to use <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> for
+callable types and <code class="docutils literal notranslate"><span class="pre">=&gt;</span></code> for lambdas.</p>
+</section>
+</section>
+<section id="runtime-behavior">
+<h3><a class="toc-backref" href="#runtime-behavior">Runtime Behavior</a></h3>
+<p>Our tentative plan is that:</p>
+<ul class="simple">
+<li>The <code class="docutils literal notranslate"><span class="pre">__repr__</span></code> will show an arrow syntax literal.</li>
+<li>We will provide a new API where the runtime data structure can be
+accessed in the same manner as the AST data structure.</li>
+<li>We will ensure that we provide an API that is backward-compatible
+with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> and <code class="docutils literal notranslate"><span class="pre">typing.Concatenate</span></code>, specifically
+the behavior of <code class="docutils literal notranslate"><span class="pre">__args__</span></code> and <code class="docutils literal notranslate"><span class="pre">__parameters__</span></code>.</li>
+</ul>
+<p>Because these details are still under debate we are currently
+maintaining <a class="reference external" href="https://docs.google.com/document/d/15nmTDA_39Lo-EULQQwdwYx_Q1IYX4dD5WPnHbFG71Lk/edit">a separate doc</a>
+with details about the new builtins, the evaluation model, how to
+provide both a backward-compatible and more structured API, and
+possible alternatives to the current plan.</p>
+<p>Once the plan is finalized we will include a full specification of
+runtime behavior in this section of the PEP.</p>
+</section>
+</section>
+<section id="rejected-alternatives">
+<h2><a class="toc-backref" href="#rejected-alternatives">Rejected Alternatives</a></h2>
+<p>Many of the alternatives we considered would have been more expressive
+than <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>, for example adding support for describing
+signatures that include named, optional, and variadic arguments.</p>
+<p>To determine which features we most needed to support with a callable
+type syntax, we did an extensive analysis of existing projects:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/pradeep90/annotation_collector#typed-projects---callable-type">stats on the use of the Callable type</a>;</li>
+<li><a class="reference external" href="https://github.com/pradeep90/annotation_collector#typed-projects---callback-usage">stats on how untyped and partially-typed callbacks are actually used</a>.</li>
+</ul>
+<p>We decided on a simple proposal with improved syntax for the existing
+<code class="docutils literal notranslate"><span class="pre">Callable</span></code> type because the vast majority of callbacks can be correctly
+described by the existing <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> semantics:</p>
+<ul class="simple">
+<li>Positional parameters: By far the most important case to handle well
+is simple callable types with positional parameters, such as
+<code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code></li>
+<li>ParamSpec and Concatenate: The next most important feature is good
+support for <a class="reference external" href="../pep-0612">PEP 612</a> <code class="docutils literal notranslate"><span class="pre">ParamSpec</span></code> and <code class="docutils literal notranslate"><span class="pre">Concatenate</span></code> types like
+<code class="docutils literal notranslate"><span class="pre">(**P)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> and <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">**P)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code>. These are common
+primarily because of the heavy use of decorator patterns in python
+code.</li>
+<li>TypeVarTuples: The next most important feature, assuming <a class="reference external" href="../pep-0646">PEP 646</a> is
+accepted, is for unpacked types which are common because of cases
+where a wrapper passes along <code class="docutils literal notranslate"><span class="pre">*args</span></code> to some other function.</li>
+</ul>
+<p>Features that other, more complicated proposals would support account
+for fewer than 2% of the use cases we found. These are already
+expressible using Callback Protocols, and since they are uncommon we
+decided that it made more sense to move forward with a simpler syntax.</p>
+<section id="extended-syntax-supporting-named-and-optional-arguments">
+<h3><a class="toc-backref" href="#extended-syntax-supporting-named-and-optional-arguments">Extended Syntax Supporting Named and Optional Arguments</a></h3>
+<p>Another alternative was for a compatible but more complex syntax that
+could express everything in this PEP but also named, optional, and
+variadic arguments. In this “extended” syntax proposal the following
+types would have been equivalent:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Function</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="o">...</span>
+
+<span class="n">Function</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+<p>Advantages of this syntax include: - Most of the advantages of the
+proposal in this PEP (conciseness, <a class="reference external" href="../pep-0612">PEP 612</a> support, etc) -
+Furthermore, the ability to handle named, optional, and variadic
+arguments</p>
+<p>We decided against proposing it for the following reasons:</p>
+<ul class="simple">
+<li>The implementation would have been more difficult, and usage stats
+demonstrate that fewer than 3% of use cases would benefit from any
+of the added features.</li>
+<li>The group that debated these proposals was split down the middle
+about whether these changes are even desirable:<ul>
+<li>On the one hand, they make callable types more expressive. On the
+other hand, they could easily confuse users who have not read the
+full specification of callable type syntax.</li>
+<li>We believe the simpler syntax proposed in this PEP, which
+introduces no new semantics and closely mimics syntax in other
+popular languages like Kotlin, Scala, and TypesScript, is much
+less likely to confuse users.</li>
+</ul>
+</li>
+<li>We intend to implement the current proposal in a way that is
+forward-compatible with the more complicated extended syntax. If the
+community decides after more experience and discussion that we want
+the additional features, they should be straightforward to propose
+in the future.</li>
+<li>We realized that because of overloads, it is not possible to replace
+all need for Callback Protocols even with an extended syntax. This
+makes us prefer proposing a simple solution that handles most use
+cases well.</li>
+</ul>
+<p>We confirmed that the current proposal is forward-compatible with
+extended syntax by
+<a class="reference external" href="https://github.com/stroxler/cpython/tree/callable-type-syntax--extended">implementing</a>
+a quick-and-dirty grammar and AST on top of the grammar and AST for
+the current proposal.</p>
+</section>
+<section id="syntax-closer-to-function-signatures">
+<h3><a class="toc-backref" href="#syntax-closer-to-function-signatures">Syntax Closer to Function Signatures</a></h3>
+<p>One alternative we had floated was a syntax much more similar to
+function signatures.</p>
+<p>In this proposal, the following types would have been equivalent:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Function</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="o">...</span>
+
+<span class="n">Function</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+<p>The benefits of this proposal would have included:</p>
+<ul class="simple">
+<li>Perfect syntactic consistency between signatures and callable types.</li>
+<li>Support for more features of function signatures (named, optional,
+variadic args) that this PEP does not support.</li>
+</ul>
+<p>Key downsides that led us to reject the idea include the following:</p>
+<ul class="simple">
+<li>A large majority of use cases only use positional-only arguments,
+and this syntax would be more verbose for that use case, both
+because of requiring argument names and an explicit <code class="docutils literal notranslate"><span class="pre">/</span></code>, for
+example <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">/)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> where our proposal allows <code class="docutils literal notranslate"><span class="pre">(int)</span> <span class="pre">-&gt;</span>
+<span class="pre">bool</span></code></li>
+<li>The requirement for explicit <code class="docutils literal notranslate"><span class="pre">/</span></code> for positional-only arguments has
+a high risk of causing frequent bugs - which often would not be
+detected by unit tests - where library authors would accidentally
+use types with named arguments.</li>
+<li>Our analysis suggests that support for <code class="docutils literal notranslate"><span class="pre">ParamSpec</span></code> is key, but the
+scoping rules laid out in <a class="reference external" href="../pep-0612">PEP 612</a> would have made this difficult.</li>
+</ul>
+</section>
+<section id="other-proposals-considered">
+<h3><a class="toc-backref" href="#other-proposals-considered">Other Proposals Considered</a></h3>
+<section id="functions-as-types">
+<h4><a class="toc-backref" href="#functions-as-types">Functions-as-Types</a></h4>
+<p>An idea we looked at very early on was to <a class="reference external" href="https://docs.google.com/document/d/1rv6CCDnmLIeDrYlXe-QcyT0xNPSYAuO1EBYjU3imU5s/edit?usp=sharing">allow using functions as
+types</a>.
+The idea is allowing a function to stand in for its own call
+signature, with roughly the same semantics as the <code class="docutils literal notranslate"><span class="pre">__call__</span></code> method
+of Callback Protocols. Think this may be a great idea and worth its
+own PEP, but that it is not a good alternative to improving the
+usability of callable types:</p>
+<ul class="simple">
+<li>Using functions as types would not give us a new way of describing
+function types as first class values. Instead, they would require a
+function definition statement that effectively defines a type alias
+(much as a Callable Protocol class statement does).</li>
+<li>Functions-as-types would support almost exactly the same features
+that Callable Protocols do today: named, optional, and variadic args
+as well as the ability to define overloads.</li>
+</ul>
+<p>Another reason we don’t view functions-as-types as a good alternative
+is that it would be difficult to handle <code class="docutils literal notranslate"><span class="pre">ParamSpec</span></code>, which we
+consider a critical feature to support.</p>
+</section>
+<section id="parenthesis-free-syntax">
+<h4><a class="toc-backref" href="#parenthesis-free-syntax">Parenthesis-Free Syntax</a></h4>
+<p>We considered a parentheses-free syntax that would have been even more
+concise:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+<p>We decided against it because this is not visually as similar to
+existing function header syntax. Moreover, it is visually similar to
+lambdas, which bind names with no parentheses: <code class="docutils literal notranslate"><span class="pre">lambda</span> <span class="pre">x,</span> <span class="pre">y:</span> <span class="pre">x</span> <span class="pre">==</span>
+<span class="pre">y</span></code>.</p>
+</section>
+<section id="introducing-type-strings">
+<h4><a class="toc-backref" href="#introducing-type-strings">Introducing type-strings</a></h4>
+<p>Another idea was adding a new “special string” syntax and putting the type
+inside of it, for example <code class="docutils literal notranslate"><span class="pre">t”(int,</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">bool”</span></code>. We rejected this
+because it is not as readable, and seems out of step with <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/message/SZLWVYV2HPLU6AH7DOUD7DWFUGBJGQAY/">guidance</a>
+from the Steering Council on ensuring that type expressions do not
+diverge from the rest of Python’s syntax.</p>
+</section>
+</section>
+</section>
+<section id="backward-compatibility">
+<h2><a class="toc-backref" href="#backward-compatibility">Backward Compatibility</a></h2>
+<p>This PEP proposes a major syntax improvement over <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code>,
+but the static semantics are the same.</p>
+<p>As such, the only thing we need for backward compatibility is to
+ensure that types specified via the new syntax behave the same as
+equivalent <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> and <code class="docutils literal notranslate"><span class="pre">typing.Concatenate</span></code> values they
+intend to replace.</p>
+<p>There is no particular interaction between this proposal and <code class="docutils literal notranslate"><span class="pre">from</span>
+<span class="pre">__future__</span> <span class="pre">import</span> <span class="pre">annotations</span></code> - just like any other type annotation
+it will be unparsed to a string at module import, and
+<code class="docutils literal notranslate"><span class="pre">typing.get_type_hints</span></code> should correctly evaluate the resulting
+strings in cases where that is possible.</p>
+<p>This is discussed in more detail in the Runtime Behavior section.</p>
+</section>
+<section id="reference-implementation">
+<h2><a class="toc-backref" href="#reference-implementation">Reference Implementation</a></h2>
+<p>We have a working <a class="reference external" href="https://github.com/stroxler/cpython/tree/callable-type-syntax--shorthand">implementation</a>
+of the AST and Grammar with tests verifying that the grammar proposed
+here has the desired behaviors.</p>
+<p>The runtime behavior is not yet implemented. As discussed in the
+<a class="reference internal" href="#runtime-behavior">Runtime Behavior</a> portion of the spec we have a detailed plan for
+both a backward-compatible API and a more structured API in
+<a class="reference external" href="https://docs.google.com/document/d/15nmTDA_39Lo-EULQQwdwYx_Q1IYX4dD5WPnHbFG71Lk/edit">a separate doc</a>
+where we are also open to discussion and alternative ideas.</p>
+</section>
+<section id="open-issues">
+<h2><a class="toc-backref" href="#open-issues">Open Issues</a></h2>
+<section id="details-of-the-runtime-api">
+<h3><a class="toc-backref" href="#details-of-the-runtime-api">Details of the Runtime API</a></h3>
+<p>Once we have finalized all details of the runtime behavior, we
+will need to add a full specification of the behavior to the
+<a class="reference internal" href="#runtime-behavior">Runtime Behavior</a> section of this PEP as well as include that
+behavior in our reference implementation.</p>
+</section>
+<section id="optimizing-syntaxerror-messages">
+<h3><a class="toc-backref" href="#optimizing-syntaxerror-messages">Optimizing <code class="docutils literal notranslate"><span class="pre">SyntaxError</span></code> messages</a></h3>
+<p>The current reference implementation has a fully-functional parser and
+all edge cases presented here have been tested.</p>
+<p>But there are some known cases where the errors are not as informative
+as we would like. For example, because <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">...)</span> <span class="pre">-&gt;</span> <span class="pre">bool</span></code> is
+illegal but <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">...)</span></code> is a valid tuple, we currently produce a
+syntax error flagging the <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> as the problem even though the real
+cause of the error is using <code class="docutils literal notranslate"><span class="pre">...</span></code> as an argument type.</p>
+<p>This is not part of the specification <em>per se</em> but is an important
+detail to address in our implementation. The solution will likely
+involve adding <code class="docutils literal notranslate"><span class="pre">invalid_.*</span></code> rules to <code class="docutils literal notranslate"><span class="pre">python.gram</span></code> and customizing
+error messages.</p>
+</section>
+</section>
+<section id="resources">
+<h2><a class="toc-backref" href="#resources">Resources</a></h2>
+<section id="background-and-history">
+<h3><a class="toc-backref" href="#background-and-history">Background and History</a></h3>
+<p><a class="reference external" href="https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code">PEP 484 specifies</a>
+a very similar syntax for function type hint <em>comments</em> for use in
+code that needs to work on Python 2.7. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="c1"># type: (int, str) -&gt; bool</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>At that time we used indexing operations to specify generic types like
+<code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code> because we decided not to add syntax for
+types. However, we have since begun to do so, e.g. with <a class="reference external" href="../pep-0604">PEP 604</a>.</p>
+<p><strong>Maggie</strong> proposed better callable type syntax as part of a larger
+<a class="reference external" href="https://drive.google.com/file/d/1XhqTKoO6RHtz7zXqW5Wgq9nzaEz9TXjI/view">presentation on typing simplifications</a>
+at the PyCon Typing Summit 2021.</p>
+<p><strong>Steven</strong> <cite>brought up this proposal on typing-sig
+&lt;https://mail.python.org/archives/list/typing-sig&#64;python.org/thread/3JNXLYH5VFPBNIVKT6FFBVVFCZO4GFR2&gt;</cite>. We
+had several meetings to discuss alternatives, and <a class="reference external" href="https://www.dropbox.com/s/sshgtr4p30cs0vc/Python%20Callable%20Syntax%20Proposals.pdf?dl=0">this presentation</a>
+led us to the current proposal.</p>
+<p><strong>Pradeep</strong> <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/VBHJOS3LOXGVU6I4FABM6DKHH65GGCUB">brought this proposal to python-dev</a>
+for feedback.</p>
+</section>
+<section id="other-languages">
+<h3><a class="toc-backref" href="#other-languages">Other Languages</a></h3>
+<p>Many popular programming languages use an arrow syntax similar
+to the one we are proposing here</p>
+<p>the same <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> arrow token we are proposing here.
+almost identical to the ones we are proposing here</p>
+<section id="id2">
+<h4><a class="toc-backref" href="#id2">TypeScript</a></h4>
+<p>In <a class="reference external" href="https://basarat.gitbook.io/typescript/type-system/callable#arrow-syntax">TypeScript</a>,
+function types are expressed in a syntax almost the same as the one we
+are proposing, but the arrow token is <code class="docutils literal notranslate"><span class="pre">=&gt;</span></code> and arguments have names:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+<p>The names of the arguments are not actually relevant to the type. So,
+for example, this is the same callable type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nb">bool</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h4><a class="toc-backref" href="#id4">Kotlin</a></h4>
+<p>Function types in <a class="reference external" href="https://kotlinlang.org/docs/lambdas.html">Kotlin</a> permit
+an identical syntax to the one we are proposing, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">Int</span><span class="p">,</span> <span class="n">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bool</span>
+</pre></div>
+</div>
+<p>It also optionally allows adding names to the arguments, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bool</span>
+</pre></div>
+</div>
+<p>As in TypeScript, the argument names if provided are just there for documentation
+and are not part of the type itself.</p>
+</section>
+<section id="id6">
+<h4><a class="toc-backref" href="#id6">Scala</a></h4>
+<p><a class="reference external" href="https://docs.scala-lang.org/tour/higher-order-functions.html">Scala</a>
+uses the <code class="docutils literal notranslate"><span class="pre">=&gt;</span></code> arrow for function types. Other than that, their syntax is
+the same as the one we are proposing, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">Int</span><span class="p">,</span> <span class="n">String</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">Bool</span>
+</pre></div>
+</div>
+<p>Scala, like Python, has the ability to provide function arguments by name.
+Funciton types can optionally include names, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">String</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">Bool</span>
+</pre></div>
+</div>
+<p>Unlike in TypeScript and Kotlin, these names are part of the type if
+provided - any function implementing the type must use the same names.
+This is similar to the extended syntax proposal we described in our
+<a class="reference internal" href="#rejected-alternatives">Rejected Alternatives</a> section.</p>
+</section>
+<section id="the-ml-language-family">
+<h4><a class="toc-backref" href="#the-ml-language-family">The ML Language Family</a></h4>
+<p>Languages in the ML family, including <a class="reference external" href="https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-types#syntax-for-types">F#</a>,
+<a class="reference external" href="https://www2.ocaml.org/learn/tutorials/basics.html#Defining-a-function">OCaml</a>,
+and <a class="reference external" href="https://wiki.haskell.org/Type_signature">Haskell</a>, all use
+<code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> to represent function types. All of them use a parentheses-free
+syntax with multiple arrows, for example in Haskell:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Integer</span> <span class="o">-&gt;</span> <span class="n">String</span> <span class="o">-&gt;</span> <span class="n">Bool</span>
+</pre></div>
+</div>
+<p>The use of multiple arrows, which differs from our proposal, makes
+sense for languages in this family because they use automatic
+<a class="reference external" href="https://en.wikipedia.org/wiki/Currying">currying</a> of function arguments,
+which means that a multi-argument function behaves like a single-argument
+function returning a function.</p>
+</section>
+</section>
+<section id="acknowledgments">
+<h3><a class="toc-backref" href="#acknowledgments">Acknowledgments</a></h3>
+<p>Thanks to the following people for their feedback on the PEP and help
+planning the reference implementation:</p>
+<p>Alex Waygood, Guido Van Rossum, Eric Traut, James Hilton-Balfe, Maggie
+Moss, Shannon Zhu</p>
+<p>TODO: MAKE SURE THE THANKS STAYS UP TO DATE</p>
+</section>
+</section>
+<section id="copyright">
+<h2><a class="toc-backref" href="#copyright">Copyright</a></h2>
+<p>This document is placed in the public domain or under the
+CC0-1.0-Universal license, whichever is more permissive.</p>
+</section>
+</section>
+<p>Source: <a class="reference external" href="https://github.com/python/peps/blob/main/pep-0677.rst">https://github.com/python/peps/blob/main/pep-0677.rst</a></p>
+<p>Last modified: <a class="reference external" href="https://github.com/python/peps/commits/main/pep-0677.rst">2021-12-14 04:31:31 GMT</a></p>
+
+        </article>
+        <nav id="pep-sidebar">
+            <h2>Contents</h2>
+            <ul>
+<li><a class="reference internal" href="#">PEP 677 – Callable Type Syntax</a><ul>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#motivation">Motivation</a><ul>
+<li><a class="reference internal" href="#describing-callable-signatures-with-typing-callable">Describing Callable Signatures with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></li>
+<li><a class="reference internal" href="#problems-with-typing-callable">Problems with <code class="docutils literal notranslate"><span class="pre">typing.Callable</span></code></a></li>
+<li><a class="reference internal" href="#an-arrow-syntax-for-callable-types">An Arrow Syntax for Callable Types</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rationale">Rationale</a></li>
+<li><a class="reference internal" href="#specification">Specification</a><ul>
+<li><a class="reference internal" href="#typing-behavior">Typing Behavior</a></li>
+<li><a class="reference internal" href="#grammar-and-ast">Grammar and AST</a></li>
+<li><a class="reference internal" href="#implications-of-the-grammar">Implications of the Grammar</a><ul>
+<li><a class="reference internal" href="#precedence-of">Precedence of -&gt;</a></li>
+<li><a class="reference internal" href="#async-keyword"><code class="docutils literal notranslate"><span class="pre">async</span></code> Keyword</a></li>
+<li><a class="reference internal" href="#trailing-commas">Trailing Commas</a></li>
+<li><a class="reference internal" href="#disallowing-as-an-argument-type">Disallowing <code class="docutils literal notranslate"><span class="pre">...</span></code> as an Argument Type</a></li>
+<li><a class="reference internal" href="#incompatibility-with-other-possible-uses-of-and">Incompatibility with other possible uses of <code class="docutils literal notranslate"><span class="pre">*</span></code> and <code class="docutils literal notranslate"><span class="pre">**</span></code></a></li>
+<li><a class="reference internal" href="#compatibility-with-arrow-based-lambda-syntax">Compatibility with Arrow-Based Lambda Syntax</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#runtime-behavior">Runtime Behavior</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rejected-alternatives">Rejected Alternatives</a><ul>
+<li><a class="reference internal" href="#extended-syntax-supporting-named-and-optional-arguments">Extended Syntax Supporting Named and Optional Arguments</a></li>
+<li><a class="reference internal" href="#syntax-closer-to-function-signatures">Syntax Closer to Function Signatures</a></li>
+<li><a class="reference internal" href="#other-proposals-considered">Other Proposals Considered</a><ul>
+<li><a class="reference internal" href="#functions-as-types">Functions-as-Types</a></li>
+<li><a class="reference internal" href="#parenthesis-free-syntax">Parenthesis-Free Syntax</a></li>
+<li><a class="reference internal" href="#introducing-type-strings">Introducing type-strings</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
+<li><a class="reference internal" href="#reference-implementation">Reference Implementation</a></li>
+<li><a class="reference internal" href="#open-issues">Open Issues</a><ul>
+<li><a class="reference internal" href="#details-of-the-runtime-api">Details of the Runtime API</a></li>
+<li><a class="reference internal" href="#optimizing-syntaxerror-messages">Optimizing <code class="docutils literal notranslate"><span class="pre">SyntaxError</span></code> messages</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#resources">Resources</a><ul>
+<li><a class="reference internal" href="#background-and-history">Background and History</a></li>
+<li><a class="reference internal" href="#other-languages">Other Languages</a><ul>
+<li><a class="reference internal" href="#id2">TypeScript</a></li>
+<li><a class="reference internal" href="#id4">Kotlin</a></li>
+<li><a class="reference internal" href="#id6">Scala</a></li>
+<li><a class="reference internal" href="#the-ml-language-family">The ML Language Family</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#copyright">Copyright</a></li>
+</ul>
+</li>
+</ul>
+
+            <br />
+            <strong><a href="https://github.com/python/peps/blob/main/pep-0677.rst">Page Source (GitHub)</a></strong>
+        </nav>
+    </section>
+    <script src="../_static/doctools.js"></script>
+</body>
+</html>
